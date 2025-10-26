@@ -1,0 +1,589 @@
+{% extends "base.html" %}
+{% block title %}Калькулятор TCO{% endblock %}
+{% block content %}
+<div class="bg-white shadow-card rounded-lg p-6">
+    <h2 class="text-xl font-semibold text-gray-900 mb-6">🧮 Калькулятор TCO</h2>
+
+    {% if error %}
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <form method="POST" action="/tco" class="space-y-6">
+        <div>
+            <label for="assortment_type" class="block text-sm font-medium text-gray-700">Тип ассортимента *</label>
+            <select name="assortment_type" id="assortment_type" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm focus:border-blue-600 focus:ring-2 focus:ring-blue-500 sm:text-sm input-focus" required>
+                <option value="inzak" {% if assortment_type == 'inzak' %}selected{% endif %}>ИНЗАК</option>
+                <option value="warehouse" {% if assortment_type == 'warehouse' %}selected{% endif %}>Складской ассортимент</option>
+                <option value="import" {% if assortment_type == 'import' %}selected{% endif %}>ИМПОРТ</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="num_suppliers" class="block text-sm font-medium text-gray-700">Количество поставщиков</label>
+            <select name="num_suppliers" id="num_suppliers" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm focus:border-blue-600 focus:ring-2 focus:ring-blue-500 sm:text-sm input-focus">
+                <option value="2" {% if num_suppliers == 2 %}selected{% endif %}>2</option>
+                <option value="3" {% if num_suppliers == 3 %}selected{% endif %}>3</option>
+            </select>
+        </div>
+
+        <div id="suppliers-container" class="grid grid-cols-1 gap-6">
+            <!-- Формы поставщиков будут добавлены через JavaScript -->
+        </div>
+
+        <div>
+            <button type="submit" class="inline-flex items-center px-4 py-2 btn-primary text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition">
+                🧮 Рассчитать TCO
+            </button>
+        </div>
+
+        <p class="mt-4 text-sm text-gray-500">* Обязательные поля</p>
+    </form>
+
+    <!-- Выпадающее окно "Справка" -->
+    <div class="mt-6">
+        <details class="bg-gray-50 rounded-lg shadow-sm p-4">
+            <summary class="text-lg font-medium text-gray-900 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition">
+                📚 Справка по расчёту TCO для складского ассортимента
+            </summary>
+            <div class="mt-4 text-sm text-gray-700 space-y-4">
+                <h3 class="text-md font-semibold text-gray-900">Описание расчёта</h3>
+                <p>
+                    Расчёт общей стоимости владения (TCO, Total Cost of Ownership) для складского ассортимента позволяет оценить полные затраты на закупку, логистику, хранение и финансирование товаров с учётом рисков и дополнительных параметров. Для каждого поставщика рассчитываются прямые затраты, стоимость финансирования, риски и итоговое TCO, чтобы определить наиболее выгодного поставщика.
+                </p>
+                <h3 class="text-md font-semibold text-gray-900">Параметры расчёта</h3>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li><strong>Цена за единицу (руб.):</strong> Стоимость одной единицы товара.</li>
+                    <li><strong>Минимальная партия (ед.):</strong> Минимальное количество единиц товара, которое необходимо закупить (MOQ).</li>
+                    <li><strong>Общая стоимость товаров (руб.):</strong> Рассчитывается как <code>Цена за единицу × Минимальная партия</code>.</li>
+                    <li><strong>Объём единицы (м³):</strong> Объём одной единицы товара в кубических метрах.</li>
+                    <li><strong>Общий объём (м³):</strong> Рассчитывается как <code>Объём единицы × Минимальная партия</code>.</li>
+                    <li><strong>Логистические расходы (руб.):</strong> Затраты на транспортировку товаров.</li>
+                    <li><strong>Срок хранения (дни):</strong> Количество дней хранения товаров на складе.</li>
+                    <li><strong>Отсрочка платежа (дни):</strong> Период, на который предоставляется отсрочка оплаты поставщику.</li>
+                    <li><strong>Ретро-бонус (%):</strong> Процент скидки, предоставляемый поставщиком за выполнение условий договора.</li>
+                    <li><strong>Возвратный товар:</strong> Указывает, можно ли вернуть товар поставщику (Да/Нет). Если товар невозвратный, к рискам добавляется штраф 5% от общей стоимости товаров.</li>
+                    <li><strong>Риски и доп. издержки (руб.):</strong> Дополнительные затраты, связанные с рисками поставки (например, порча, брак).</li>
+                </ul>
+                <h3 class="text-md font-semibold text-gray-900">Формулы расчёта</h3>
+                <ol class="list-decimal pl-5 space-y-2">
+                    <li>
+                        <strong>Общая стоимость товаров:</strong><br>
+                        <code>Общая стоимость товаров = Цена за единицу × Минимальная партия</code>
+                    </li>
+                    <li>
+                        <strong>Скидка по ретро-бонусу:</strong><br>
+                        <code>Скорректированная стоимость товаров = Общая стоимость товаров × (1 - Ретро-бонус / 100)</code>
+                    </li>
+                    <li>
+                        <strong>Стоимость хранения:</strong><br>
+                        <code>Стоимость хранения = 1200 × Общий объём × (Срок хранения / 30)</code><br>
+                        Где 1200 руб. — фиксированная стоимость хранения 1 м³ в месяц.
+                    </li>
+                    <li>
+                        <strong>Стоимость финансирования:</strong><br>
+                        <code>Стоимость финансирования = (Отсрочка платежа / 365) × 0.25 × Общая стоимость товаров</code><br>
+                        Где 0.25 — годовая ставка ЦБ (25%).
+                    </li>
+                    <li>
+                        <strong>Скорректированные риски:</strong><br>
+                        <code>Скорректированные риски = Риски + MOQ</code><br>
+                        Если товар невозвратный, добавляется штраф:<br>
+                        <code>Скорректированные риски = Скорректированные риски + (Общая стоимость товаров × 0.05)</code>
+                    </li>
+                    <li>
+                        <strong>Прямые затраты:</strong><br>
+                        <code>Прямые затраты = Скорректированная стоимость товаров + Логистические расходы + Стоимость хранения</code>
+                    </li>
+                    <li>
+                        <strong>TCO (Общая стоимость владения):</strong><br>
+                        <code>TCO = Прямые затраты + Стоимость финансирования + Скорректированные риски</code>
+                    </li>
+                </ol>
+                <h3 class="text-md font-semibold text-gray-900">Примечания</h3>
+                <p>
+                    - MOQ (минимальная партия) учитывается как дополнительный риск, так как большие партии увеличивают затраты на хранение и риски переизбытка.<br>
+                    - Поставщик с минимальным TCO помечается как "Лучший", остальные — как "Допустимый".<br>
+                    - Все денежные значения округляются до 2 десятичных знаков для удобства чтения.
+                </p>
+            </div>
+        </details>
+    </div>
+</div>
+
+<script>
+    // Функция создания формы для одного поставщика
+    function createSupplierForm(supplierNum, assortmentType) {
+        let nameField = `
+            <h3 class="text-lg font-medium text-gray-900 mb-4">
+                <input type="text" name="supplier${supplierNum}_name" id="supplier${supplierNum}_name" value="Поставщик ${supplierNum}" class="bg-transparent border-none focus:outline-none text-lg font-medium text-gray-900">
+            </h3>
+        `;
+
+        let totalGoodsField = `
+            <div>
+                <label for="supplier${supplierNum}_total_goods_cost" class="block text-sm font-medium text-gray-700">Общая стоимость товаров/услуг (руб.) *</label>
+                <input type="number" name="supplier${supplierNum}_total_goods_cost" id="supplier${supplierNum}_total_goods_cost" step="0.01" placeholder="Введите стоимость" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+            </div>
+        `;
+
+        let volumeField = `
+            <div>
+                <label for="supplier${supplierNum}_product_volume_m3" class="block text-sm font-medium text-gray-700">Объем товара (м³) *</label>
+                <input type="number" name="supplier${supplierNum}_product_volume_m3" id="supplier${supplierNum}_product_volume_m3" step="0.01" placeholder="Введите объем" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+            </div>
+        `;
+
+        let moqField = `
+            <div>
+                <label for="supplier${supplierNum}_moq" class="block text-sm font-medium text-gray-700">Минимальный объем закупки (руб.)</label>
+                <input type="number" name="supplier${supplierNum}_moq" id="supplier${supplierNum}_moq" step="0.01" placeholder="Введите MOQ" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm">
+            </div>
+        `;
+
+        let shippingFields = '';
+        if (assortmentType === 'inzak') {
+            shippingFields = `
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Тип отгрузки *</label>
+                    <div class="mt-2 space-x-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="supplier${supplierNum}_shipping_type" value="direct" data-shipping="shipping" data-supplier-id="${supplierNum}" checked class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            <span class="ml-2 text-sm text-gray-700">Прямая отгрузка</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="supplier${supplierNum}_shipping_type" value="cs" data-shipping="shipping" data-supplier-id="${supplierNum}" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                            <span class="ml-2 text-sm text-gray-700">Отгрузка с ЦС</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="supplier${supplierNum}_partner_shipping_fields" class="hidden">
+                    <label for="supplier${supplierNum}_storage_days" class="block text-sm font-medium text-gray-700">Срок хранения (дни) *</label>
+                    <input type="number" name="supplier${supplierNum}_storage_days" id="supplier${supplierNum}_storage_days" placeholder="Введите срок" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                </div>
+            `;
+        } else if (assortmentType === 'warehouse') {
+            shippingFields = `
+                <input type="hidden" name="supplier${supplierNum}_shipping_type" value="cs">
+                <div>
+                    <label for="supplier${supplierNum}_storage_days" class="block text-sm font-medium text-gray-700">Срок хранения (дни) *</label>
+                    <input type="number" name="supplier${supplierNum}_storage_days" id="supplier${supplierNum}_storage_days" placeholder="Введите срок" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                </div>
+            `;
+        } else { // import
+            shippingFields = `
+                <div>
+                    <label for="supplier${supplierNum}_customs_duty" class="block text-sm font-medium text-gray-700">Таможенная пошлина (руб.) *</label>
+                    <input type="number" name="supplier${supplierNum}_customs_duty" id="supplier${supplierNum}_customs_duty" step="0.01" placeholder="Введите пошлину" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                </div>
+                <div>
+                    <label for="supplier${supplierNum}_transport_cost" class="block text-sm font-medium text-gray-700">Транспортные расходы (руб.) *</label>
+                    <input type="number" name="supplier${supplierNum}_transport_cost" id="supplier${supplierNum}_transport_cost" step="0.01" placeholder="Введите расходы" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                </div>
+                <div>
+                    <label for="supplier${supplierNum}_insurance_cost" class="block text-sm font-medium text-gray-700">Стоимость страховки (руб.)</label>
+                    <input type="number" name="supplier${supplierNum}_insurance_cost" id="supplier${supplierNum}_insurance_cost" step="0.01" placeholder="Введите стоимость" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm">
+                </div>
+                <div>
+                    <label for="supplier${supplierNum}_customs_clearance" class="block text-sm font-medium text-gray-700">Стоимость таможенного оформления (руб.)</label>
+                    <input type="number" name="supplier${supplierNum}_customs_clearance" id="supplier${supplierNum}_customs_clearance" step="0.01" placeholder="Введите стоимость" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm">
+                </div>
+            `;
+        }
+
+        let resultsSection = `
+            <div id="supplier${supplierNum}_results" class="mt-6 hidden">
+                <h4 class="text-md font-medium text-gray-900 mb-4">Результаты расчёта</h4>
+                <table class="min-w-full bg-white border rounded-lg">
+                    <thead>
+                        <tr class="table-header">
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Параметр</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Значение</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="table-row">
+                            <td class="px-6 py-4 text-sm text-gray-700">Прямые затраты</td>
+                            <td id="supplier${supplierNum}_direct_costs" class="px-6 py-4 text-sm text-gray-700">0.00</td>
+                        </tr>
+                        <tr class="table-row">
+                            <td class="px-6 py-4 text-sm text-gray-700">Стоимость финансирования</td>
+                            <td id="supplier${supplierNum}_financing_cost" class="px-6 py-4 text-sm text-gray-700">0.00</td>
+                        </tr>
+                        <tr class="table-row">
+                            <td class="px-6 py-4 text-sm text-gray-700">Риски</td>
+                            <td id="supplier${supplierNum}_adjusted_risks" class="px-6 py-4 text-sm text-gray-700">0.00</td>
+                        </tr>
+                        <tr class="table-row">
+                            <td class="px-6 py-4 text-sm text-gray-700">TCO</td>
+                            <td id="supplier${supplierNum}_tco" class="px-6 py-4 text-sm text-gray-700">0.00</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        if (assortmentType === 'warehouse') {
+            totalGoodsField = `
+                <div>
+                    <label for="supplier${supplierNum}_unit_price" class="block text-sm font-medium text-gray-700">Цена за единицу (руб.) *</label>
+                    <input type="number" name="supplier${supplierNum}_unit_price" id="supplier${supplierNum}_unit_price" step="0.01" placeholder="Введите цену" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                </div>
+            `;
+            volumeField = `
+                <div>
+                    <label for="supplier${supplierNum}_unit_volume" class="block text-sm font-medium text-gray-700">Объём единицы (м³) *</label>
+                    <input type="number" name="supplier${supplierNum}_unit_volume" id="supplier${supplierNum}_unit_volume" step="0.01" placeholder="Введите объем" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                </div>
+            `;
+            moqField = `
+                <div>
+                    <label for="supplier${supplierNum}_min_batch" class="block text-sm font-medium text-gray-700">Минимальная партия (ед.) *</label>
+                    <input type="number" name="supplier${supplierNum}_min_batch" id="supplier${supplierNum}_min_batch" step="1" placeholder="Введите партию" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                </div>
+            `;
+            let paymentDelayField = `
+                <div>
+                    <label for="supplier${supplierNum}_payment_delay" class="block text-sm font-medium text-gray-700">Отсрочка платежа (дни) *</label>
+                    <input type="number" name="supplier${supplierNum}_payment_delay" id="supplier${supplierNum}_payment_delay" placeholder="Введите отсрочку" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                </div>
+            `;
+            let retroBonusField = `
+                <div>
+                    <label for="supplier${supplierNum}_retro_bonus" class="block text-sm font-medium text-gray-700">Ретро-бонус (%) *</label>
+                    <input type="number" name="supplier${supplierNum}_retro_bonus" id="supplier${supplierNum}_retro_bonus" step="0.01" placeholder="Введите бонус" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                </div>
+            `;
+            return `
+                <div class="border rounded-lg p-4 bg-gray-50 shadow-sm">
+                    ${nameField}
+                    <div class="grid grid-cols-1 gap-4">
+                        ${totalGoodsField}
+                        ${volumeField}
+                        ${moqField}
+                        <div>
+                            <label for="supplier${supplierNum}_logistics" class="block text-sm font-medium text-gray-700">Логистические расходы (руб.) *</label>
+                            <input type="number" name="supplier${supplierNum}_logistics" id="supplier${supplierNum}_logistics" step="0.01" placeholder="Введите расходы" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                        </div>
+                        ${shippingFields}
+                        ${paymentDelayField}
+                        ${retroBonusField}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Возвратный товар?</label>
+                            <div class="mt-2 space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="supplier${supplierNum}_returnable" value="Y" checked class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                    <span class="ml-2 text-sm text-gray-700">Да</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="supplier${supplierNum}_returnable" value="N" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                    <span class="ml-2 text-sm text-gray-700">Нет</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="supplier${supplierNum}_risks" class="block text-sm font-medium text-gray-700">Риски и доп. издержки (руб.) *</label>
+                            <input type="number" name="supplier${supplierNum}_risks" id="supplier${supplierNum}_risks" step="0.01" placeholder="Введите риски" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                        </div>
+                    </div>
+                    ${resultsSection}
+                </div>
+            `;
+        } else if (assortmentType === 'import') {
+            totalGoodsField = `
+                <div>
+                    <label for="supplier${supplierNum}_total_goods_cost" class="block text-sm font-medium text-gray-700">Общая стоимость товаров (руб.) *</label>
+                    <input type="number" name="supplier${supplierNum}_total_goods_cost" id="supplier${supplierNum}_total_goods_cost" step="0.01" placeholder="Введите стоимость" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                </div>
+            `;
+            let paymentDelayField = `
+                <div>
+                    <label for="supplier${supplierNum}_payment_delay" class="block text-sm font-medium text-gray-700">Отсрочка платежа (дни) *</label>
+                    <input type="number" name="supplier${supplierNum}_payment_delay" id="supplier${supplierNum}_payment_delay" placeholder="Введите отсрочку" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                </div>
+            `;
+            let retroBonusField = `
+                <div>
+                    <label for="supplier${supplierNum}_retro_bonus" class="block text-sm font-medium text-gray-700">Ретро-бонус (%)</label>
+                    <input type="number" name="supplier${supplierNum}_retro_bonus" id="supplier${supplierNum}_retro_bonus" step="0.01" placeholder="Введите бонус" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm">
+                </div>
+            `;
+            return `
+                <div class="border rounded-lg p-4 bg-gray-50 shadow-sm">
+                    ${nameField}
+                    <div class="grid grid-cols-1 gap-4">
+                        ${totalGoodsField}
+                        ${volumeField}
+                        ${shippingFields}
+                        ${moqField}
+                        ${paymentDelayField}
+                        ${retroBonusField}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Возвратный товар?</label>
+                            <div class="mt-2 space-x-4">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="supplier${supplierNum}_returnable" value="Y" checked class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                    <span class="ml-2 text-sm text-gray-700">Да</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="supplier${supplierNum}_returnable" value="N" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                    <span class="ml-2 text-sm text-gray-700">Нет</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="supplier${supplierNum}_risks" class="block text-sm font-medium text-gray-700">Риски и доп. издержки (руб.) *</label>
+                            <input type="number" name="supplier${supplierNum}_risks" id="supplier${supplierNum}_risks" step="0.01" placeholder="Введите риски" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                        </div>
+                    </div>
+                    ${resultsSection}
+                </div>
+            `;
+        }
+
+        return `
+            <div class="border rounded-lg p-4 bg-gray-50 shadow-sm">
+                ${nameField}
+                <div class="grid grid-cols-1 gap-4">
+                    ${totalGoodsField}
+                    <div>
+                        <label for="supplier${supplierNum}_logistics" class="block text-sm font-medium text-gray-700">Логистические расходы (руб.) *</label>
+                        <input type="number" name="supplier${supplierNum}_logistics" id="supplier${supplierNum}_logistics" step="0.01" placeholder="Введите расходы" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                    </div>
+                    ${volumeField}
+                    ${shippingFields}
+                    <div>
+                        <label for="supplier${supplierNum}_delivery_days" class="block text-sm font-medium text-gray-700">Срок поставки (дней) *</label>
+                        <input type="number" name="supplier${supplierNum}_delivery_days" id="supplier${supplierNum}_delivery_days" placeholder="Введите срок" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Частичная предоплата?</label>
+                        <div class="mt-2 space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="supplier${supplierNum}_partial_prepayment" value="N" data-supplier-id="${supplierNum}" checked class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                <span class="ml-2 text-sm text-gray-700">Нет</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="supplier${supplierNum}_partial_prepayment" value="Y" data-supplier-id="${supplierNum}" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                <span class="ml-2 text-sm text-gray-700">Да</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="supplier${supplierNum}_prepayment_fields" class="hidden space-y-2">
+                        <div>
+                            <label for="supplier${supplierNum}_prepayment_percent" class="block text-sm font-medium text-gray-700">Процент предоплаты (%)</label>
+                            <input type="number" name="supplier${supplierNum}_prepayment_percent" id="supplier${supplierNum}_prepayment_percent" step="0.01" placeholder="Введите процент" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="supplier${supplierNum}_payment_delay" class="block text-sm font-medium text-gray-700">Отсрочка платежа для остатка (дней)</label>
+                            <input type="number" name="supplier${supplierNum}_payment_delay" id="supplier${supplierNum}_payment_delay_partial" placeholder="Введите отсрочку" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm">
+                        </div>
+                    </div>
+                    <div id="supplier${supplierNum}_no_prepayment_fields" class="space-y-2">
+                        <div>
+                            <label for="supplier${supplierNum}_payment_delay" class="block text-sm font-medium text-gray-700">Отсрочка платежа (дней)</label>
+                            <input type="number" name="supplier${supplierNum}_payment_delay" id="supplier${supplierNum}_payment_delay_no" placeholder="Введите отсрочку" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="supplier${supplierNum}_retro_bonus" class="block text-sm font-medium text-gray-700">Ретро-бонус (%)</label>
+                        <input type="number" name="supplier${supplierNum}_retro_bonus" id="supplier${supplierNum}_retro_bonus" step="0.01" placeholder="Введите бонус" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                    </div>
+                    ${moqField}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Возвратный товар?</label>
+                        <div class="mt-2 space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="supplier${supplierNum}_returnable" value="Y" checked class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                <span class="ml-2 text-sm text-gray-700">Да</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="supplier${supplierNum}_returnable" value="N" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                                <span class="ml-2 text-sm text-gray-700">Нет</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="supplier${supplierNum}_risks" class="block text-sm font-medium text-gray-700">Риски и доп. издержки (руб.) *</label>
+                        <input type="number" name="supplier${supplierNum}_risks" id="supplier${supplierNum}_risks" step="0.01" placeholder="Введите риски" class="mt-1 block w-full rounded-md border-2 border-gray-300 bg-gray-50 shadow-sm input-focus sm:text-sm" required>
+                    </div>
+                </div>
+                ${resultsSection}
+            </div>
+        `;
+    }
+
+    // Установка обработчиков событий
+    function setupEventListeners() {
+        // Обработчик для частичной предоплаты
+        document.querySelectorAll('input[type="radio"][name$="_partial_prepayment"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const supplierId = this.dataset.supplierId;
+                const prepaymentFields = document.getElementById(`supplier${supplierId}_prepayment_fields`);
+                const noPrepaymentFields = document.getElementById(`supplier${supplierId}_no_prepayment_fields`);
+                if (this.value === 'Y') {
+                    prepaymentFields.classList.remove('hidden');
+                    noPrepaymentFields.classList.add('hidden');
+                } else {
+                    prepaymentFields.classList.add('hidden');
+                    noPrepaymentFields.classList.remove('hidden');
+                }
+                calculateSupplier(supplierId);
+            });
+        });
+
+        // Обработчик для типа отгрузки (только для ИНЗАК)
+        document.querySelectorAll('input[type="radio"][name$="_shipping_type"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const supplierId = this.dataset.supplierId;
+                const partnerFields = document.getElementById(`supplier${supplierId}_partner_shipping_fields`);
+                const storageDaysInput = document.getElementById(`supplier${supplierId}_storage_days`);
+                if (this.value === 'cs') {
+                    partnerFields.classList.remove('hidden');
+                    if (storageDaysInput) storageDaysInput.setAttribute('required', 'required');
+                } else {
+                    partnerFields.classList.add('hidden');
+                    if (storageDaysInput) storageDaysInput.removeAttribute('required');
+                }
+                calculateSupplier(supplierId);
+            });
+        });
+
+        // Обработчик для ввода данных
+        document.querySelectorAll('input[name^="supplier"]').forEach(input => {
+            input.addEventListener('input', function() {
+                const supplierId = this.name.match(/supplier(\d+)_/)[1];
+                calculateSupplier(supplierId);
+            });
+        });
+
+        // Обработчик для возвратного товара
+        document.querySelectorAll('input[type="radio"][name$="_returnable"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const supplierId = this.name.match(/supplier(\d+)_/)[1];
+                calculateSupplier(supplierId);
+            });
+        });
+    }
+
+    // Функция расчёта TCO для поставщика в реальном времени
+    function calculateSupplier(supplierNum) {
+        const assortmentType = document.getElementById('assortment_type').value;
+        let total_goods_cost = 0;
+        let product_volume_m3 = 0;
+        let logistics = parseFloat(document.getElementById(`supplier${supplierNum}_logistics`)?.value) || 0;
+        let storage_days = 0;
+        let retro_bonus = parseFloat(document.getElementById(`supplier${supplierNum}_retro_bonus`)?.value) || 0;
+        let moq = 0;
+        let risks = parseFloat(document.getElementById(`supplier${supplierNum}_risks`)?.value) || 0;
+        let returnable = document.querySelector(`input[name="supplier${supplierNum}_returnable"]:checked`)?.value === "Y";
+        let financing_cost = 0;
+        const partial_prepayment = document.querySelector(`input[name="supplier${supplierNum}_partial_prepayment"]:checked`)?.value === "Y";
+        let payment_delay = 0;
+        let prepayment_percent = 0;
+
+        if (assortmentType === 'import') {
+            // Для ИМПОРТ расчёты пока не выполняются
+            document.getElementById(`supplier${supplierNum}_direct_costs`).textContent = "0.00";
+            document.getElementById(`supplier${supplierNum}_financing_cost`).textContent = "0.00";
+            document.getElementById(`supplier${supplierNum}_adjusted_risks`).textContent = "0.00";
+            document.getElementById(`supplier${supplierNum}_tco`).textContent = "0.00";
+            return;
+        }
+
+        if (partial_prepayment && assortmentType === 'inzak') {
+            prepayment_percent = parseFloat(document.getElementById(`supplier${supplierNum}_prepayment_percent`)?.value) || 0;
+            payment_delay = parseFloat(document.getElementById(`supplier${supplierNum}_payment_delay_partial`)?.value) || 0;
+        } else {
+            payment_delay = parseFloat(document.getElementById(`supplier${supplierNum}_payment_delay${assortmentType === 'warehouse' ? '' : '_no'}`)?.value) || 0;
+        }
+
+        let shipping_type = 'direct';
+        if (assortmentType === 'inzak') {
+            shipping_type = document.querySelector(`input[name="supplier${supplierNum}_shipping_type"]:checked`)?.value || 'direct';
+        } else if (assortmentType === 'warehouse') {
+            shipping_type = 'cs';
+        }
+
+        if (assortmentType === 'warehouse') {
+            const unit_price = parseFloat(document.getElementById(`supplier${supplierNum}_unit_price`)?.value) || 0;
+            const min_batch = parseFloat(document.getElementById(`supplier${supplierNum}_min_batch`)?.value) || 0;
+            total_goods_cost = unit_price * min_batch;
+            const unit_volume = parseFloat(document.getElementById(`supplier${supplierNum}_unit_volume`)?.value) || 0;
+            product_volume_m3 = unit_volume * min_batch;
+            moq = total_goods_cost;
+            storage_days = parseFloat(document.getElementById(`supplier${supplierNum}_storage_days`)?.value) || 0;
+        } else {
+            total_goods_cost = parseFloat(document.getElementById(`supplier${supplierNum}_total_goods_cost`)?.value) || 0;
+            product_volume_m3 = parseFloat(document.getElementById(`supplier${supplierNum}_product_volume_m3`)?.value) || 0;
+            moq = parseFloat(document.getElementById(`supplier${supplierNum}_moq`)?.value) || 0;
+            if (shipping_type === 'cs') {
+                storage_days = parseFloat(document.getElementById(`supplier${supplierNum}_storage_days`)?.value) || 0;
+            }
+        }
+
+        // Расчёт стоимости хранения
+        let storage_cost = 0;
+        if (assortmentType === 'warehouse' || (assortmentType === 'inzak' && shipping_type === 'cs')) {
+            storage_cost = 1200 * product_volume_m3 * (storage_days / 30);
+        }
+
+        // Расчёт стоимости финансирования
+        if (partial_prepayment && assortmentType === 'inzak') {
+            const prepayment_amount = total_goods_cost * (prepayment_percent / 100);
+            const remaining_amount = total_goods_cost - prepayment_amount;
+            financing_cost = (payment_delay / 365) * 0.25 * remaining_amount;
+        } else {
+            financing_cost = (payment_delay / 365) * 0.25 * total_goods_cost;
+        }
+
+        // Расчёт TCO
+        const discounted_goods_cost = total_goods_cost * (1 - retro_bonus / 100);
+        const direct_costs = discounted_goods_cost + logistics + storage_cost;
+        let adjusted_risks = risks + moq;
+        if (!returnable) {
+            adjusted_risks += total_goods_cost * 0.05;
+        }
+        const tco = direct_costs + financing_cost + adjusted_risks;
+
+        // Обновление результатов в интерфейсе
+        document.getElementById(`supplier${supplierNum}_direct_costs`).textContent = direct_costs.toFixed(2);
+        document.getElementById(`supplier${supplierNum}_financing_cost`).textContent = financing_cost.toFixed(2);
+        document.getElementById(`supplier${supplierNum}_adjusted_risks`).textContent = adjusted_risks.toFixed(2);
+        document.getElementById(`supplier${supplierNum}_tco`).textContent = tco.toFixed(2);
+        document.getElementById(`supplier${supplierNum}_results`).classList.remove('hidden');
+    }
+
+    // Рендеринг форм поставщиков
+    function renderSuppliers(numSuppliers, assortmentType) {
+        const container = document.getElementById('suppliers-container');
+        container.innerHTML = '';
+        container.className = `grid grid-cols-1 md:grid-cols-${numSuppliers} gap-6`;
+
+        for (let i = 1; i <= numSuppliers; i++) {
+            container.innerHTML += createSupplierForm(i, assortmentType);
+            calculateSupplier(i); // Начальный расчёт
+        }
+
+        setupEventListeners();
+    }
+
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        const numSuppliersSelect = document.getElementById('num_suppliers');
+        const assortmentTypeSelect = document.getElementById('assortment_type');
+
+        // Рендеринг форм при загрузке
+        renderSuppliers(parseInt(numSuppliersSelect.value), assortmentTypeSelect.value);
+
+        // Обработчик изменения количества поставщиков или типа ассортимента
+        function handleFormChange() {
+            renderSuppliers(parseInt(numSuppliersSelect.value), assortmentTypeSelect.value);
+        }
+
+        numSuppliersSelect.addEventListener('change', handleFormChange);
+        assortmentTypeSelect.addEventListener('change', handleFormChange);
+    });
+</script>
+{% endblock %}

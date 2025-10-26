@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Результаты расчёта TCO{% endblock %}
+{% block content %}
+<div class="bg-white shadow-card rounded-lg p-6">
+    <h2 class="text-xl font-semibold text-gray-900 mb-6">📊 Результаты расчёта TCO</h2>
+
+    {% if error %}
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    {% if results %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white border rounded-lg">
+                <thead>
+                    <tr class="table-header">
+                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Поставщик</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Общая стоимость товаров (руб.)</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Логистические расходы (руб.)</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Стоимость хранения (руб.)</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Стоимость отсрочки (руб.)</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Риски (руб.)</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Ретро-бонус (%)</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">MOQ (руб.)</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Возвратный товар</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Прямые затраты (руб.)</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">TCO (руб.)</th>
+                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Рекомендация</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for res in results %}
+                        <tr class="border-t table-row">
+                            <td class="px-6 py-4 text-sm text-gray-700">{{ res.name }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">{{ res.total_goods_cost | default(0) | round(2) }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">{{ res.logistics | default(0) | round(2) }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">{{ res.storage_cost | default(0) | round(2) }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">{{ res.financing_cost | default(0) | round(2) }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">{{ res.risks | default(0) | round(2) }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">{{ res.retro_bonus | default(0) | round(2) }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">{{ res.moq | default(0) | round(2) }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">{{ res.returnable }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">{{ res.direct_costs | default(0) | round(2) }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">{{ res.tco | default(0) | round(2) }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700 {{ 'text-green-600' if res.recommendation == 'Лучший' else 'text-blue-600' }}">{{ res.recommendation }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if plot_url %}
+            <div class="mt-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Сравнение TCO</h3>
+                <img src="data:image/png;base64,{{ plot_url }}" alt="График TCO" class="max-w-full h-auto rounded-lg shadow-md">
+            </div>
+        {% endif %}
+
+        <div class="mt-6 flex space-x-4">
+            <a href="/" class="inline-flex items-center px-4 py-2 btn-primary text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition">
+                Вернуться к калькулятору
+            </a>
+            {% if assortment_type in ['inzak', 'warehouse'] %}
+                <a href="/export_excel" class="inline-flex items-center px-4 py-2 btn-primary text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition">
+                    Экспорт в Excel
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

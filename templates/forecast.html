@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Прогноз спроса{% endblock %}
+{% block content %}
+<div class="bg-white shadow rounded-lg p-6">
+    <h2 class="text-xl font-semibold text-gray-900 mb-6">Прогноз спроса</h2>
+
+    {% if error %}
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data" class="space-y-6">
+        <div>
+            <label for="data_file" class="block text-sm font-medium text-gray-700">Загрузите данные (CSV или Excel)</label>
+            <input type="file" name="data_file" id="data_file" accept=".csv,.xlsx" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" required>
+            <p class="mt-2 text-sm text-gray-500">Файл должен содержать столбцы: <code>date</code>, <code>demand</code></p>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Выберите модель</label>
+            <div class="mt-2 space-y-4">
+                <div class="flex items-start">
+                    <label class="inline-flex items-center mt-1">
+                        <input type="radio" name="model_type" value="arima" checked class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                        <span class="ml-2 text-sm text-gray-700">ARIMA</span>
+                    </label>
+                    <p class="ml-4 text-sm text-gray-600">ARIMA (Autoregressive Integrated Moving Average) — это модель для прогнозирования временных рядов. Она сочетает три компонента: AR (авторегрессия — зависимость от предыдущих значений), I (интегрирование — дифференцирование для стационарности ряда) и MA (скользящее среднее — зависимость от предыдущих ошибок прогноза). Порядок модели (p, d, q): p — количество лагов AR, d — степень дифференцирования, q — количество лагов MA. ARIMA эффективна для данных с трендами и автокорреляцией, но не учитывает сезонность (для этого есть SARIMA). В этой системе используется порядок (2,1,2) для простоты.</p>
+                </div>
+                <div class="flex items-start">
+                    <label class="inline-flex items-center mt-1">
+                        <input type="radio" name="model_type" value="prophet" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                        <span class="ml-2 text-sm text-gray-700">Prophet</span>
+                    </label>
+                    <p class="ml-4 text-sm text-gray-600">Prophet — это аддитивная модель от Facebook для прогнозирования временных рядов с сильной сезонностью. Формула: y(t) = g(t) + s(t) + h(t) + ε(t), где g(t) — нелинейный тренд (линейный или логистический), s(t) — сезонность (годовая, недельная, ежедневная), h(t) — влияние праздников, ε(t) — ошибка. Модель автоматически подстраивается под данные, учитывает изменения тренда и сезонность. Идеальна для данных с повторяющимися паттернами (например, продажи по дням недели). В этой системе Prophet обучается на исторических данных и прогнозирует на 14 дней вперед.</p>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <button type="submit" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition">
+                Построить прогноз
+            </button>
+        </div>
+    </form>
+
+    {% if plot_url %}
+        <div class="mt-8">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">График прогноза</h3>
+            <img src="data:image/png;base64,{{ plot_url }}" alt="График прогноза" class="w-full rounded-lg shadow">
+        </div>
+    {% endif %}
+
+    {% if forecast_table %}
+        <div class="mt-8">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Таблица прогноза</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border rounded-lg">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Дата</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-900">Прогноз</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in forecast_table %}
+                            <tr class="border-t">
+                                <td class="px-6 py-4 text-sm text-gray-700">{{ row.date }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-700">{{ row.forecast|round(2) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
