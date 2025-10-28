@@ -20,8 +20,8 @@ def calc_import(supplier_data):
     pprint(supplier_data)        
 
     if returnable:
-        formula =  total_cost + product_vol + customs_toll + transportation_cost + insurance_cost + customs_clearance + min_purchase_vol + payment_delay + risk_costs
+        formula =  total_cost + product_vol + customs_toll + transportation_cost + insurance_cost + customs_clearance + min_purchase_vol + payment_delay + risk_costs + retro_bonus
     else:
-        formula =  total_cost + product_vol + customs_toll + transportation_cost + insurance_cost + customs_clearance + min_purchase_vol + payment_delay + risk_costs
+        formula =  total_cost + product_vol + customs_toll + transportation_cost + insurance_cost + customs_clearance + min_purchase_vol + payment_delay + risk_costs + retro_bonus
 
     return formula

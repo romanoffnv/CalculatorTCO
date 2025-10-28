@@ -1,6 +1,6 @@
 from pprint import pprint
 def calc_inzak(supplier_data):
-    sup_num = supplier_data["Поставщик №"]
+    sup_num = supplier_data["Поставщик #"]
     logistics_cost = supplier_data['Логистические расходы (руб.)']
     total_cost = supplier_data["Общая стоимость товаров/услуг (руб.)"]
     logistics_cost = supplier_data["Логистические расходы (руб.)"]
@@ -13,7 +13,7 @@ def calc_inzak(supplier_data):
     returnable = supplier_data["Возвратный товар"]
     risk_costs = supplier_data["Риски и доп. издержки (руб.)"]
 
-    print(f"calc_inzak, Поставщик №: {sup_num}")
+    print(f"calc_inzak, Поставщик #: {sup_num}")
     pprint(supplier_data)        
 
     if returnable:

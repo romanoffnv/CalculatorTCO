@@ -12,7 +12,7 @@ def calc_WH(supplier_data):
     risk_costs = supplier_data["Риски и доп. издержки (руб.)"]
 
 
-    print(f"calc_WH, Поставщик №: {sup_num}")
+    print(f"calc_WH, Поставщик #: {sup_num}")
     pprint(supplier_data)        
 
     if returnable:
